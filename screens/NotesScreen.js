@@ -11,6 +11,7 @@ import firebase from "../database/firebaseDB";
 
 export default function NotesScreen({ navigation, route }) {
   const [notes, setNotes] = useState([]);
+  const db = firebase.firestore().collection("todos");
 
   // testing
   // firebase.firestore().collection("testing").add({
@@ -22,17 +23,21 @@ export default function NotesScreen({ navigation, route }) {
 
   // Monitoring firebase when the screen loads
   useEffect(() => {
-    const unsubscribe = firebase
-      .firestore()
-      .collection("todos")
+    const unsubscribe = db
+      .orderBy("created", "desc")
       .onSnapshot((collection) => {
-        const updatedNotes = collection.docs.map((doc) => doc.data());
+        const updatedNotes = collection.docs.map((doc) => {
+          const noteObject = {
+            ...doc.data(),
+            id: doc.id,
+          };
+          console.log(noteObject);
+          return noteObject;
+        });
         setNotes(updatedNotes);
       });
 
-    return () => {
-      unsubscribe();
-    };
+    return unsubscribe;
   }, []);
 
   // This is to set up the top right button
@@ -60,9 +65,10 @@ export default function NotesScreen({ navigation, route }) {
       const newNote = {
         title: route.params.text,
         done: false,
-        id: notes.length.toString(),
+        created: firebase.firestore.FieldValue.serverTimestamp(),
+        //id: notes.length.toString(),
       };
-      firebase.firestore().collection("todos").add(newNote);
+      db.add(newNote);
     }
   }, [route.params?.text]);
 
@@ -74,14 +80,7 @@ export default function NotesScreen({ navigation, route }) {
   function deleteNote(id) {
     console.log("Deleting " + id);
 
-    firebase
-      .firestore()
-      .collection("todos")
-      .where("id", "==", id)
-      .get()
-      .then((querySnapshot) => {
-        querySnapshot.forEach((doc) => doc.ref.delete());
-      });
+    db.doc(id).delete();
   }
 
   // The function to render each row in our FlatList
