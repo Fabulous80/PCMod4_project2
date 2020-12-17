@@ -7,9 +7,33 @@ import {
   FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import firebase from "../database/firebaseDB";
 
 export default function NotesScreen({ navigation, route }) {
   const [notes, setNotes] = useState([]);
+
+  // testing
+  // firebase.firestore().collection("testing").add({
+  //   title: "Testing! Does this work?",
+  //   body: "This is to check the Integration is working",
+  //   potato: true,
+  //   question: "Why is there a potato bool her",
+  // });
+
+  // Monitoring firebase when the screen loads
+  useEffect(() => {
+    const unsubscribe = firebase
+      .firestore()
+      .collection("todos")
+      .onSnapshot((collection) => {
+        const updatedNotes = collection.docs.map((doc) => doc.data());
+        setNotes(updatedNotes);
+      });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // This is to set up the top right button
   useEffect(() => {
@@ -38,7 +62,7 @@ export default function NotesScreen({ navigation, route }) {
         done: false,
         id: notes.length.toString(),
       };
-      setNotes([...notes, newNote]);
+      firebase.firestore().collection("todos").add(newNote);
     }
   }, [route.params?.text]);
 
@@ -49,8 +73,15 @@ export default function NotesScreen({ navigation, route }) {
   // This deletes an individual note
   function deleteNote(id) {
     console.log("Deleting " + id);
-    // To delete that item, we filter out the item we don't want
-    setNotes(notes.filter((item) => item.id !== id));
+
+    firebase
+      .firestore()
+      .collection("todos")
+      .where("id", "==", id)
+      .get()
+      .then((querySnapshot) => {
+        querySnapshot.forEach((doc) => doc.ref.delete());
+      });
   }
 
   // The function to render each row in our FlatList
